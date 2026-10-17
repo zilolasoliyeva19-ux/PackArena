@@ -553,3 +553,24 @@ footer a.footer-credit:hover{color:#caff86;text-decoration:underline}
   .admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
   .admin-field-row{grid-template-columns:1fr}
 }
+
+
+/* Final motion/spacing refinements for the encyclopedia card grid */
+.wiki-player-grid .player-card{height:auto;min-height:390px;animation:card-pop .42s cubic-bezier(.2,.8,.2,1) both}
+.wiki-player-grid .player-card:nth-child(2){animation-delay:.035s}
+.wiki-player-grid .player-card:nth-child(3){animation-delay:.07s}
+.wiki-player-grid .player-card:nth-child(4){animation-delay:.105s}
+.wiki-player-grid .player-card:nth-child(5){animation-delay:.14s}
+.wiki-player-grid .player-card:nth-child(6){animation-delay:.175s}
+.wiki-player-grid .player-card:nth-child(7){animation-delay:.21s}
+.wiki-player-grid .player-card:nth-child(8){animation-delay:.245s}
+.wiki-player-grid .player-card:nth-child(9){animation-delay:.28s}
+.wiki-player-grid .player-card:nth-child(10){animation-delay:.315s}
+.admin-login-panel{animation:reveal-in .35s cubic-bezier(.2,.8,.2,1) both}
+.admin-box,.admin-metric{transition:border-color .2s ease,transform .2s ease,background .2s ease}
+.admin-metric:hover{transform:translateY(-2px);border-color:#4f7144;background:#132217}
+.wiki-detail-modal{animation:reveal-in .3s cubic-bezier(.2,.8,.2,1) both}
+.wiki-links a,.admin-action,.admin-custom-row button{transition:all .18s ease}
+@media(max-width:760px){.wiki-player-grid .player-card{min-height:370px}}
+@media(max-width:430px){.wiki-player-grid .player-card{min-height:355px}}
+@media(prefers-reduced-motion:reduce){.wiki-player-grid .player-card,.admin-login-panel,.admin-box,.admin-metric,.wiki-detail-modal{animation:none;transition:none}}
