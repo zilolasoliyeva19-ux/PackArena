@@ -312,7 +312,35 @@ function App() {
         {wikiResults.length>0?<div className="player-grid wiki-player-grid">{wikiResults.map(player=><PlayerCard key={player.id} player={player} portraitMap={portraitMap} onSelect={()=>setWikiSelected(player)}/>)}</div>:<div className="empty">Hech narsa topilmadi. Qidiruv so‘zini yoki pozitsiya filtrini o‘zgartiring.</div>}
         <div className="wiki-source-note"><Globe size={15}/> Biografiya Wikipedia sahifasidan yuklanadi. O‘yin ichidagi reytinglar rasmiy futbol statistikasi emas.</div>
       </section>}
-      {page==="squad"&&<section className="page-section"><div className="eyebrow">TAKTIKANGNI TANLA</div><h1 className="page-title">ORZU <span>JAMOAM</span></h1><p className="muted">Har bir futbolchini o‘z pozitsiyasiga qo‘y. Faqat mos pozitsiyadagi futbolchilar tanlanadi.</p><div className="squad-toolbar"><label>Format</label><div className="formation-tabs">{formations.map(f=><button key={f.key} className={formation===f.key?"chosen":""} onClick={()=>{setFormation(f.key);setTeam({});}}>{f.label}</button>)}</div><span className="squad-count"><ShieldCheck size={15}/>{squadPlayers}/11 joy band</span></div><div className="pitch">{activeFormation.rows.map((row,ri)=><div className={"pitch-row pitch-row-"+ri} key={ri}>{row.map((pos,i)=>{const slotKey=ri+"-"+i;const p=team[slotKey];return <button key={slotKey} className={"slot "+(p?"filled":"")} onClick={()=>setSelectedSlot({key:slotKey,pos})} aria-label={pos+" pozitsiyasini tanlash"}>{p?<><img src={portraitMap[p.id] || p.image || "/player-placeholder.svg"} alt={p.name+" portreti"} loading="lazy" decoding="async" onError={e=>handlePortraitError(e,p)}/><span className="player-fallback">{p.flag}</span><span className="slot-rating">{p.rating}</span><b>{p.name}</b><small>{p.role}</small></>:<><span className="slot-plus"><Plus size={16}/></span><b>{pos}</b><small>Tanlash</small></>}</button>;})}</div>)}</div><div className="squad-actions"><button className="secondary-btn" onClick={()=>setTeam({})}><RotateCcw size={15}/> Jamoani tozalash</button><span className="muted small"><CircleHelp size={13}/> Bo‘sh pozitsiyani bosing, mos futbolchini tanlang.</span></div></section>}
+      {page==="squad"&&<section className="page-section squad-page">
+        <div className="eyebrow">TACTICAL STUDIO · SAVE YOUR XI</div>
+        <h1 className="page-title">ORZU <span>JAMOAM</span></h1>
+        <p className="muted">Futbolchilarni pozitsiyasiga mos tanla. Jamoani nom bilan saqla va istalgan payt qayta yukla.</p>
+        <div className="squad-toolbar">
+          <label>Format</label>
+          <div className="formation-tabs">{formations.map(f=><button key={f.key} className={formation===f.key?"chosen":""} onClick={()=>{if(f.key!==formation){if(squadPlayers>0)setNotice("Format o‘zgardi. Saqlangan jamoalaring o‘chmaydi.");setFormation(f.key);setTeam({});}}}>{f.label}</button>)}</div>
+          <span className="squad-count"><ShieldCheck size={15}/>{squadPlayers}/11 joy band</span>
+        </div>
+        <div className="pitch">{activeFormation.rows.map((row,ri)=><div className={"pitch-row pitch-row-"+ri} key={ri}>{row.map((pos,i)=>{const slotKey=ri+"-"+i;const p=team[slotKey];return <button key={slotKey} className={"slot "+(p?"filled":"")} onClick={()=>setSelectedSlot({key:slotKey,pos})} aria-label={pos+" pozitsiyasini tanlash"}>{p?<><img src={portraitMap[p.id]||p.image||"/player-placeholder.svg"} alt={p.name+" portreti"} loading="lazy" decoding="async" onError={e=>handlePortraitError(e,p)}/><span className="player-fallback">{p.flag}</span><span className="slot-rating">{p.rating}</span><b>{p.name}</b><small>{p.role}</small></>:<><span className="slot-plus"><Plus size={16}/></span><b>{pos}</b><small>Tanlash</small></>}</button>;})}</div>)}</div>
+        <div className="squad-actions">
+          <button className="secondary-btn" onClick={()=>setTeam({})}><RotateCcw size={15}/> Jamoani tozalash</button>
+          <span className="muted small"><CircleHelp size={13}/> Bo‘sh pozitsiyani bosib futbolchi tanla.</span>
+        </div>
+        <div className="squad-save-panel">
+          <div className="squad-save-intro"><div className="squad-save-icon"><ShieldCheck size={21}/></div><div><h2>Jamoani saqlash</h2><p className="muted">Saqlangan tarkib shu qurilmada qoladi va sahifani yangilaganda yo‘qolmaydi.</p></div></div>
+          <form className="squad-save-form" onSubmit={saveCurrentSquad}>
+            <label className="squad-name-field"><span>Jamoa nomi</span><input value={squadName} onChange={e=>setSquadName(e.target.value)} minLength={2} maxLength={36} placeholder="Masalan: Mening Ultimate XI" required/></label>
+            <button className="primary-btn" type="submit" disabled={!squadName.trim()||squadPlayers===0}><CheckCircle2 size={16}/> JAMOANI SAQLASH</button>
+          </form>
+          <div className="saved-squad-heading"><h3>Saqlangan jamoalar</h3><span>{savedSquads.length}/25</span></div>
+          {savedSquads.length? <div className="saved-squad-list">{savedSquads.map(record=><article className="saved-squad-row" key={record.id}>
+            <div className="saved-squad-badge"><UsersRound size={18}/></div>
+            <div className="saved-squad-info"><b>{record.name}</b><small>{(formations.find(f=>f.key===record.formation)?.label||record.formation)} · {record.playerCount??Object.values(record.team||{}).filter(Boolean).length}/11 futbolchi</small><small>{record.savedAt?new Date(record.savedAt).toLocaleDateString():"Saqlangan tarkib"}</small></div>
+            <button className="saved-load" onClick={()=>loadSavedSquad(record)}><Check size={14}/> Yuklash</button>
+            <button className="saved-remove" onClick={()=>removeSavedSquad(record.id)} aria-label={record.name+" jamoasini o‘chirish"}><Trash2 size={15}/></button>
+          </article>)}</div> : <div className="saved-squad-empty"><Library size={20}/><span>Hali jamoa saqlanmagan. Tarkib tuzib, yuqoridagi tugmani bos.</span></div>}
+        </div>
+      </section>}
       {page==="leaderboard"&&<section className="page-section"><div className="eyebrow">ENG KUCHLI KOLLEKSIYACHILAR</div><h1 className="page-title">ARENA <span>REYTINGI</span></h1><div className="leaderboard">{[["01","GoldenBoot","12,450"],["02","TikiTaka","10,820"],["03","GoalMachine","9,640"],["04",profile.username||profile.name,collection.length+" cards"]].map((r,i)=><div className="leader-row" key={r[1]}><b className="rank">{r[0]}</b><span className="leader-avatar">{[<Trophy/>,<Sparkles/>,<Star/>,<UserRound/>][i]}</span><strong>{r[1]}</strong><span className="leader-score">{r[2]}</span></div>)}</div><p className="muted small">Namuna reytingi. Online reyting server va ma’lumotlar bazasi ulanganda yangilanadi.</p></section>}
       {page==="admin"&&<section className="page-section admin-page">
         <div className="eyebrow">PRIVATE CONTROL ROOM</div>
