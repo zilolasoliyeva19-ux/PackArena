@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { House, PackageOpen, Library, UsersRound, Trophy, Gift, Coins, Plus, X, ArrowUpRight, Sparkles, RotateCcw, ShieldCheck, Star, UserRound, Check, CircleHelp } from "lucide-react";
+import { House, PackageOpen, Library, UsersRound, Trophy, Gift, Coins, Plus, X, ArrowUpRight, Sparkles, RotateCcw, ShieldCheck, Star, UserRound, Check, CircleHelp, BookOpen, Search, LockKeyhole, Trash2, LogOut, Database, Globe, ExternalLink, CheckCircle2 } from "lucide-react";
 import "./style.css";
 
 const players = [
@@ -76,7 +76,7 @@ function handlePortraitError(event, player) {
 }
 
 function App() {
-  const [coins,setCoins] = useState(()=>{const v=readSaved("packarena-coins",1200);return Number.isFinite(v)&&v>=0?v:1200;});
+  const [customPlayers,setCustomPlayers] = useState(()=>{const v=readSaved("packarena-custom-players",[]);return Array.isArray(v)?v:[];});\n  const allPlayers = [...playerCatalog, ...customPlayers];\n  const [coins,setCoins] = useState(()=>{const v=readSaved("packarena-coins",1200);return Number.isFinite(v)&&v>=0?v:1200;});
   const [collection,setCollection] = useState(()=>{const v=readSaved("packarena-collection",null);return Array.isArray(v)&&v.every(p=>p&&typeof p.id==="string"&&typeof p.image==="string"&&p.stats)?v:[players[6],players[7]];});
   const [opened,setOpened] = useState(null);
   const [page,setPage] = useState("home");
@@ -90,8 +90,20 @@ function App() {
   const [authName,setAuthName] = useState("");
   const [authUsername,setAuthUsername] = useState("");
   const [authError,setAuthError] = useState("");
+  const [wikiQuery,setWikiQuery] = useState("");
+  const [wikiRole,setWikiRole] = useState("ALL");
+  const [wikiSelected,setWikiSelected] = useState(null);
+  const [wikiSummary,setWikiSummary] = useState(null);
+  const [wikiLoading,setWikiLoading] = useState(false);
+  const [adminToken,setAdminToken] = useState("");
+  const [adminAuthorized,setAdminAuthorized] = useState(false);
+  const [adminBusy,setAdminBusy] = useState(false);
+  const [adminError,setAdminError] = useState("");
+  const [adminMessage,setAdminMessage] = useState("");
+  const [newPlayer,setNewPlayer] = useState({name:"",club:"",role:"ST",rating:"80",flag:"🇺🇿",image:"",wikiTitle:""});
 
-  useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
+
+  useEffect(() => { saveSaved("packarena-custom-players", customPlayers); }, [customPlayers]);\n  useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
   useEffect(() => { saveSaved("packarena-collection", collection); }, [collection]);
   useEffect(() => { saveSaved("packarena-team", team); }, [team]);
   useEffect(() => { saveSaved("packarena-formation", formation); }, [formation]);
@@ -105,7 +117,18 @@ function App() {
   function openPack(pack) {
     if (opening) return;
     if (coins < pack.price) { setNotice("Tangalar yetarli emas. Boshqa pack tanlang!"); return; }
-    const pulls = Array.from({length:pack.count}, () => playerCatalog[Math.floor(Math.random()*playerCatalog.length)]);
+    const tierWeights = {
+      silver:{Rare:1, Epic:0.18, Legendary:0.04, Ultimate:0.01},
+      blue:{Rare:0.75, Epic:0.7, Legendary:0.14, Ultimate:0.04},
+      purple:{Rare:0.3, Epic:1, Legendary:0.4, Ultimate:0.12},
+      gold:{Rare:0.08, Epic:0.45, Legendary:1, Ultimate:0.4}
+    };
+    const pulls = Array.from({length:pack.count}, () => {
+      const rows = allPlayers.map(player => ({player, weight:tierWeights[pack.color]?.[player.tier] ?? 0.25}));
+      const total = rows.reduce((sum,row)=>sum+row.weight,0);
+      let roll = Math.random()*total;
+      return rows.find(row => (roll -= row.weight) <= 0)?.player || allPlayers[allPlayers.length-1];
+    });
     setCoins(c => c-pack.price);
     setCollection(c => [...c,...pulls]);
     setOpened({pack,pulls});
@@ -119,6 +142,37 @@ function App() {
   const currentNav = nav.find(n=>n.id===page);
   const activeFormation = formations.find(f=>f.key===formation) || formations[0];
   const squadPlayers = Object.values(team).filter(Boolean).length;
+  const wikiResults = allPlayers.filter(player => {
+    const q=wikiQuery.trim().toLocaleLowerCase();
+    const matchesQuery=!q||[player.name,player.club,player.role,player.wikiTitle].some(v=>String(v||"").toLocaleLowerCase().includes(q));
+    return matchesQuery&&(wikiRole==="ALL"||player.role===wikiRole);
+  });
+  async function signInAdmin(e) {
+    e.preventDefault();
+    setAdminBusy(true); setAdminError(""); setAdminMessage("");
+    try {
+      const response=await fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+adminToken},body:JSON.stringify({action:"authorize"})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.authorized){setAdminAuthorized(false);setAdminError(data.error||"Admin kaliti qabul qilinmadi.");return;}
+      setAdminAuthorized(true);setAdminMessage("Admin sessiyasi ushbu sahifa ochiq turgan vaqt davomida faol.");
+    } catch {setAdminAuthorized(false);setAdminError("Admin API bilan bog‘lanib bo‘lmadi. Vercel deploy holatini tekshiring.");}
+    finally {setAdminBusy(false);}
+  }
+  function addLocalPlayer(e) {
+    e.preventDefault();
+    const name=newPlayer.name.trim(), club=newPlayer.club.trim(), rating=Number(newPlayer.rating), wikiTitle=newPlayer.wikiTitle.trim()||name;
+    if(name.length<2||club.length<2||!Number.isFinite(rating)||rating<40||rating>99){setAdminError("Ism, klub va 40–99 oralig‘idagi reytingni tekshiring.");return;}
+    const id="custom-"+name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g,"-")+"-"+Date.now();
+    const stats=newPlayer.role==="GK"?{DIV:rating,HAN:Math.max(40,rating-1),KIC:Math.max(40,rating-6),REF:rating,SPE:Math.max(40,rating-30),POS:Math.max(40,rating-1)}:{PAC:rating,SHO:Math.max(40,rating-3),PAS:Math.max(40,rating-2),DRI:Math.max(40,rating-1),DEF:Math.max(40,rating-15),PHY:Math.max(40,rating-7)};
+    const player={id,name,club,rating,role:newPlayer.role,tier:rating>=93?"Ultimate":rating>=90?"Legendary":rating>=86?"Epic":"Rare",flag:newPlayer.flag||"🌍",color:rating>=93?"gold":rating>=90?"purple":rating>=86?"blue":"green",price:Math.round(rating*10),image:newPlayer.image.trim(),wikiTitle,profile:"https://en.wikipedia.org/wiki/"+encodeURIComponent(wikiTitle.replace(/ /g,"_")),stats,custom:true};
+    setCustomPlayers(list=>[player,...list]);setNewPlayer({name:"",club:"",role:"ST",rating:"80",flag:"🇺🇿",image:"",wikiTitle:""});setAdminError("");setAdminMessage("Futbolchi shu brauzerning katalogiga qo‘shildi.");
+  }
+  function removeLocalPlayer(id) {
+    setCustomPlayers(list=>list.filter(player=>player.id!==id));
+    setCollection(list=>list.filter(player=>player.id!==id));
+    setTeam(old=>Object.fromEntries(Object.entries(old).filter(([,player])=>player?.id!==id)));
+    setAdminMessage("Custom futbolchi shu brauzerdan olib tashlandi.");
+  }
   function createProfile(e) {
     e.preventDefault();
     const name = authName.trim();
