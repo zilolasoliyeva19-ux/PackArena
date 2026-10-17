@@ -270,3 +270,23 @@ img{max-width:100%}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* Foil illustrations replace emoji pack placeholders */
+.pack-art-svg{display:block;width:92px;height:108px;overflow:visible;filter:drop-shadow(0 8px 9px #0007);transform-origin:50% 60%;animation:foil-float 3s ease-in-out infinite}
+.pack-card:hover .pack-art-svg{filter:drop-shadow(0 8px 14px #0008) brightness(1.08)}
+.pack-illustration{height:116px;overflow:visible}
+.pack-orbit{width:100px;height:64px;box-shadow:0 0 24px #b5fa4510}
+.animated-pack{width:150px;height:172px;border:0;background:transparent;box-shadow:none;animation:pack-bounce .65s ease-in-out infinite alternate}
+.animated-pack .pack-art-svg{width:143px;height:164px;animation:foil-open 1s ease-in-out infinite alternate;filter:drop-shadow(0 0 20px #b5fa454d)}
+.animated-pack.blue .pack-art-svg{filter:drop-shadow(0 0 20px #71c9ff55)}
+.animated-pack.purple .pack-art-svg{filter:drop-shadow(0 0 20px #d8a1ff55)}
+.animated-pack.gold .pack-art-svg{filter:drop-shadow(0 0 20px #ffd77855)}
+.picker-flag{display:none}
+.picker-player.photo-missing .picker-flag{display:flex}
+.player-profile-link svg{width:11px;height:11px}
+.profile-switch-mobile{display:none;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 30px;border:1px solid #2d4533;border-radius:5px;background:#101e14;color:#b5fa45}
+@keyframes foil-float{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-5px) rotate(1deg)}}
+@keyframes foil-open{from{transform:scale(.97) rotate(-2deg);filter:brightness(.9)}to{transform:scale(1.04) rotate(2deg);filter:brightness(1.18)}}
+@media(max-width:760px){.profile-switch-mobile{display:flex}.pack-art-svg{width:79px;height:96px}.pack-illustration{height:104px}.animated-pack{width:132px;height:155px}.animated-pack .pack-art-svg{width:130px;height:150px}}
+@media(max-width:430px){.profile-switch-mobile{width:28px;height:28px;flex-basis:28px}.pack-art-svg{width:70px;height:86px}.pack-illustration{height:94px}.animated-pack{width:120px;height:145px}.animated-pack .pack-art-svg{width:116px;height:140px}}
+@media(prefers-reduced-motion:reduce){.pack-art-svg,.animated-pack .pack-art-svg{animation:none}}
