@@ -639,3 +639,44 @@ footer a.footer-credit:hover{color:#caff86;text-decoration:underline}
   .saved-remove{grid-column:3;grid-row:1 / span 2;width:31px}
   .wiki-player-grid .player-card{min-height:345px}
 }
+
+
+/* Currency-free pack flow, resilient portrait fallback and input layout fixes */
+.free-price{display:inline-flex;align-items:center;gap:7px;color:#c8ff83;font-weight:900;letter-spacing:.8px}
+.free-price svg{color:#b5fa45;flex:0 0 auto}
+.pack-bottom{align-items:center;flex-wrap:wrap}
+.pack-bottom>button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:100px;max-width:100%}
+.pack-card p{overflow-wrap:anywhere}
+.player-art{position:relative;isolation:isolate;overflow:hidden}
+.player-art img{position:relative;z-index:1;display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom;transition:transform .35s ease,opacity .2s ease}
+.player-card:hover .player-art img{transform:scale(1.045)}
+.player-art.photo-missing img{display:none}
+.player-art.photo-missing .player-fallback{display:flex;z-index:2;font-size:46px;line-height:1}
+.player-art.photo-missing .player-fallback:after{content:"";position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:46px;height:2px;background:#b5fa45;border-radius:9px;opacity:.75}
+.auth-panel,.admin-box,.squad-save-panel{min-width:0}
+.auth-form,.admin-login-form,.admin-player-form{min-width:0;width:100%}
+.auth-form label,.admin-login-form label,.admin-player-form label{display:block;min-width:0;line-height:1.5}
+.auth-form input,.admin-login-form input,.admin-player-form input,.admin-player-form select,.squad-name-field input,.wiki-search input{max-width:100%;min-width:0;box-sizing:border-box}
+.auth-form input[type="text"],.auth-form input[type="password"],.auth-form input[type="url"],.auth-form input[type="number"]{display:block}
+.auth-form .primary-btn,.admin-login-form .primary-btn,.admin-player-form .primary-btn{min-width:0;max-width:100%;white-space:normal;line-height:1.35}
+input::placeholder{color:#728779;opacity:1}
+input:disabled,select:disabled,button:disabled{cursor:not-allowed;opacity:.58}
+input,select,textarea{accent-color:#b5fa45}
+.wiki-search{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%;padding:0 13px;border:1px solid #304934;border-radius:6px;background:#101f15}
+.wiki-search:focus-within{border-color:#b5fa45;box-shadow:0 0 0 3px #b5fa4515}
+.wiki-search input{height:44px;flex:1}
+.notice{overflow-wrap:anywhere}
+.notice button{min-width:30px;min-height:30px}
+@media(max-width:760px){
+  .pack-bottom{align-items:stretch}
+  .pack-bottom .price{min-height:26px}
+  .pack-bottom>button{width:100%;min-height:39px}
+  .auth-screen{padding-left:14px;padding-right:14px}
+  .auth-panel{width:100%;max-width:450px}
+  .admin-player-form .admin-field-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+}
+@media(max-width:390px){
+  .admin-player-form .admin-field-row{grid-template-columns:minmax(0,1fr)}
+  .auth-panel h1{overflow-wrap:anywhere}
+  .pack-card p{min-height:30px}
+}
