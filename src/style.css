@@ -81,3 +81,23 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
 @media(max-width:760px){.brand-logo{width:31px;height:31px}.hero-player-photo{width:90px;height:90px;left:10px;top:44px}.hero-player-name{margin-top:91px;font-size:10px;letter-spacing:.5px}.hero-card{height:180px}.squad-toolbar{gap:8px}.squad-count{margin-left:0}.pitch{min-height:460px;padding:25px 6px;gap:16px}.slot{width:68px;min-height:80px}.slot img{width:35px;height:35px}.slot b{max-width:62px;font-size:7px}.pitch-row{gap:3px}.pitch-row-2 .slot{width:58px}.picker-modal{padding:25px 14px}.picker-modal h2{font-size:27px}.pack-animation{min-height:290px}}
 @media(max-width:390px){.pitch{padding-left:2px;padding-right:2px}.slot{width:57px;min-height:74px}.pitch-row-2 .slot{width:50px}.slot img{width:30px;height:30px}.slot b{max-width:47px;font-size:6px}.pitch-row{gap:1px}.squad-toolbar label{display:none}}
+
+/* Final interaction polish and reliable reveal transitions */
+.pack-card{transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.pack-card:hover{transform:translateY(-4px);border-color:#b5fa45;box-shadow:0 12px 30px #0005}
+.pack-illustration span{display:inline-block;animation:pack-idle 2.8s ease-in-out infinite}
+.pack-card:nth-child(2) .pack-illustration span{animation-delay:.25s}
+.pack-card:nth-child(3) .pack-illustration span{animation-delay:.5s}
+.pack-card:nth-child(4) .pack-illustration span{animation-delay:.75s}
+.player-card{transition:transform .2s ease,box-shadow .2s ease}
+.player-card:hover{transform:translateY(-3px);box-shadow:0 12px 25px #0005}
+.reveal-modal:not(.opening-modal){animation:reveal-in .38s cubic-bezier(.2,.8,.2,1) both}
+.reveal-grid .player-card{animation:card-pop .42s cubic-bezier(.2,.8,.2,1) both}
+.reveal-grid .player-card:nth-child(2){animation-delay:.07s}
+.reveal-grid .player-card:nth-child(3){animation-delay:.14s}
+.reveal-grid .player-card:nth-child(4){animation-delay:.21s}
+.reveal-grid .player-card:nth-child(5){animation-delay:.28s}
+@keyframes pack-idle{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
+@keyframes reveal-in{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes card-pop{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.pack-card,.player-card{transition:none}.pack-illustration span,.reveal-modal:not(.opening-modal),.reveal-grid .player-card{animation:none}}
