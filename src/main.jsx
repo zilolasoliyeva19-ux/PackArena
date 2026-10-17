@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { House, PackageOpen, Library, UsersRound, Trophy, Gift, Coins, Plus, X, ArrowUpRight, Sparkles, RotateCcw, ShieldCheck, Star, UserRound, Check, CircleHelp, BookOpen, Search, LockKeyhole, Trash2, LogOut, Database, Globe, ExternalLink, CheckCircle2, PlusCircle } from "lucide-react";
+import { House, PackageOpen, Library, UsersRound, Trophy, Gift, X, ArrowUpRight, Sparkles, RotateCcw, ShieldCheck, Star, UserRound, Check, CircleHelp, BookOpen, Search, LockKeyhole, Trash2, LogOut, Database, Globe, ExternalLink, CheckCircle2, PlusCircle } from "lucide-react";
 import "./style.css";
 
 const players = [
@@ -100,7 +100,6 @@ function App() {
   const [savedSquads,setSavedSquads] = useState(()=>{const v=readSaved("packarena-saved-squads",[]);return Array.isArray(v)?v:[];});
   const [squadName,setSquadName] = useState("");
   const allPlayers = [...playerCatalog, ...customPlayers];
-  const [coins,setCoins] = useState(()=>{const v=readSaved("packarena-coins",1200);return Number.isFinite(v)&&v>=0?v:1200;});
   const [collection,setCollection] = useState(()=>{const v=readSaved("packarena-collection",null);return Array.isArray(v)&&v.every(p=>p&&typeof p.id==="string"&&typeof p.image==="string"&&p.stats)?v:[players[6],players[7]];});
   const [opened,setOpened] = useState(null);
   const [page,setPage] = useState("home");
@@ -129,7 +128,6 @@ function App() {
 
   useEffect(() => { saveSaved("packarena-custom-players", customPlayers); }, [customPlayers]);
   useEffect(() => { saveSaved("packarena-saved-squads", savedSquads); }, [savedSquads]);
-  useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
   useEffect(() => { saveSaved("packarena-collection", collection); }, [collection]);
   useEffect(() => { saveSaved("packarena-team", team); }, [team]);
   useEffect(() => { saveSaved("packarena-formation", formation); }, [formation]);
@@ -181,7 +179,6 @@ function App() {
 
   function openPack(pack) {
     if (opening) return;
-    if (coins < pack.price) { setNotice("Tangalar yetarli emas. Boshqa pack tanlang!"); return; }
     const tierWeights = {
       silver:{Rare:1, Epic:0.18, Legendary:0.04, Ultimate:0.01},
       blue:{Rare:0.75, Epic:0.7, Legendary:0.14, Ultimate:0.04},
@@ -194,7 +191,6 @@ function App() {
       let roll = Math.random()*total;
       return rows.find(row => (roll -= row.weight) <= 0)?.player || allPlayers[allPlayers.length-1];
     });
-    setCoins(c => c-pack.price);
     setCollection(c => [...c,...pulls]);
     setOpened({pack,pulls});
     setOpening(true);
@@ -202,7 +198,7 @@ function App() {
   }
   function claimGift() {
     if (giftClaimed) { setNotice("Kunlik sovg‘a bugun allaqachon olindi."); return; }
-    setGiftClaimed(true); saveSaved("packarena-gift-date",todayKey()); setCoins(c=>c+100); setNotice("Kunlik mukofot: +100 tanga!");
+    setGiftClaimed(true); saveSaved("packarena-gift-date",todayKey()); setNotice("Kunlik sovg‘a olindi! Bepul pack ochishga tayyorsan.");
   }
   const currentNav = nav.find(n=>n.id===page);
   const activeFormation = formations.find(f=>f.key===formation) || formations[0];
@@ -291,7 +287,7 @@ function App() {
       <div className="sidebar-bottom"><div className="season-card"><Trophy size={23} className="season-icon"/><b>SEASON 01</b><p>Maydonga chiqish vaqti!</p><div className="progress"><span/></div><small>Level 1 <span>0 / 500 XP</span></small></div><div className="user-mini"><div className="avatar"><UserRound size={17}/></div><div><b>{profile.name}</b><small>{profile.username ? "@"+profile.username : "Profil"}</small></div><button className="profile-reset" title="Profilni almashtirish" onClick={()=>{try{localStorage.removeItem("packarena-profile");}catch{}setProfile(null);setAuthName("");setAuthUsername("");}}>↻</button></div></div>
     </aside>
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">PACKARENA <span>/</span> {currentNav?.label.toUpperCase()||"ARENA"}</div><div className="top-actions"><button className="profile-switch-mobile" title="Profilni almashtirish" aria-label="Profilni almashtirish" onClick={()=>{try{localStorage.removeItem("packarena-profile");}catch{}setProfile(null);setAuthName("");setAuthUsername("");}}><UserRound size={16}/></button><button className="daily" onClick={claimGift}><Gift size={15}/><span>Kunlik sovg‘a</span></button><div className="balance"><Coins size={22}/><div><small>BALANS</small><b>{coins.toLocaleString("en-US")}</b></div><button title="Tanga olish" onClick={()=>setNotice("Kunlik sovg‘a orqali bepul 100 tanga olish mumkin.")}><Plus size={16}/></button></div></div></header>
+      <header className="topbar"><div className="breadcrumb">PACKARENA <span>/</span> {currentNav?.label.toUpperCase()||"ARENA"}</div><div className="top-actions"><button className="profile-switch-mobile" title="Profilni almashtirish" aria-label="Profilni almashtirish" onClick={()=>{try{localStorage.removeItem("packarena-profile");}catch{}setProfile(null);setAuthName("");setAuthUsername("");}}><UserRound size={16}/></button><button className="daily" onClick={claimGift}><Gift size={15}/><span>Kunlik sovg‘a</span></button></div></header>
       {notice&&<div className="notice" role="status">{notice}<button aria-label="Yopish" onClick={()=>setNotice("")}><X size={15}/></button></div>}
       {page==="home"&&<>
         <section className="hero"><div className="hero-content"><div className="eyebrow"><span className="live-dot"/> FUTBOLNING YANGI ARENASI</div><h1>OMADINGNI<br/><span>SINAB KO‘R.</span></h1><p>Packlarni och. Afsonaviy futbolchilarni yig‘.<br/>O‘z orzu jamoangni yarat.</p><button className="primary-btn" onClick={()=>setPage("packs")}>PACK OCHISH <ArrowUpRight size={17}/></button><div className="hero-stats"><div><b>{allPlayers.length}</b><small>FUTBOLCHI</small></div><div><b>04</b><small>PACK TURI</small></div><div><b>∞</b><small>IMKONIYAT</small></div></div></div><div className="hero-art"><div className="stadium-glow"/><div className="ball">⚽</div><div className="floating-tag tag-top"><Star size={12} fill="currentColor"/> ULTIMATE</div><div className="floating-tag tag-bottom">RATING <b>94</b></div><div className="hero-card"><div className="card-top"><b>94</b><span>RW<br/>🇦🇷</span></div><img className="hero-player-photo" src={portraitMap[players[0].id] || players[0].image} alt="Lionel Messi portreti" loading="eager" fetchPriority="high" onError={e=>handlePortraitError(e,players[0])}/><div className="hero-player-name">LIONEL MESSI</div><div className="card-club">INTER MIAMI</div><div className="mini-stats"><span>PAC <b>82</b></span><span>SHO <b>90</b></span><span>DRI <b>95</b></span></div></div></div><div className="hero-watermark">PACKARENA</div></section>
@@ -347,7 +343,7 @@ function App() {
         <h1 className="page-title">ADMIN <span>PANEL</span></h1>
         {!adminAuthorized?<div className="admin-login-panel"><div className="admin-lock"><LockKeyhole size={27}/></div><h2>Admin sifatida kirish</h2><p className="muted">Admin kaliti serverda tekshiriladi. Oddiy username yoki profil nomi bilan admin huquqi berilmaydi.</p><form className="admin-login-form" onSubmit={signInAdmin}><label>Maxfiy admin kaliti</label><input type="password" value={adminToken} onChange={e=>setAdminToken(e.target.value)} placeholder="Admin kalitini kiriting" autoComplete="current-password" required/><button className="primary-btn" disabled={adminBusy||!adminToken.trim()} type="submit">{adminBusy?"TEKSHIRILMOQDA...":"XAVFSIZ KIRISH"} <ArrowUpRight size={16}/></button></form>{adminError&&<p className="admin-error" role="alert">{adminError}</p>}<small className="auth-note">Vercel Environment Variables’da ADMIN_SECRET kalitini qo‘shish kerak.</small></div>
         :<><div className="admin-topline"><span className="admin-secure"><CheckCircle2 size={16}/> Sessiya tasdiqlandi</span><button className="secondary-btn" onClick={()=>{setAdminAuthorized(false);setAdminToken("");setAdminMessage("");setAdminError("");}}><LogOut size={15}/> Chiqish</button></div>
-          <div className="admin-metrics"><div className="admin-metric"><Database size={19}/><small>Katalog</small><b>{allPlayers.length}</b></div><div className="admin-metric"><Library size={19}/><small>Kolleksiya kartalari</small><b>{collection.length}</b></div><div className="admin-metric"><Coins size={19}/><small>Joriy demo tanga</small><b>{coins.toLocaleString("en-US")}</b></div><div className="admin-metric"><UserRound size={19}/><small>Custom futbolchilar</small><b>{customPlayers.length}</b></div></div>
+          <div className="admin-metrics"><div className="admin-metric"><Database size={19}/><small>Katalog</small><b>{allPlayers.length}</b></div><div className="admin-metric"><Library size={19}/><small>Kolleksiya kartalari</small><b>{collection.length}</b></div><div className="admin-metric"><PackageOpen size={19}/><small>Pack turlari</small><b>{packs.length}</b></div><div className="admin-metric"><UserRound size={19}/><small>Custom futbolchilar</small><b>{customPlayers.length}</b></div></div>
           <div className="admin-columns"><div className="admin-box"><div className="admin-box-heading"><PlusCircle size={18}/><h2>Futbolchi qo‘shish</h2></div><p className="muted">Hozircha qo‘shilgan karta shu brauzerda saqlanadi.</p><form className="admin-player-form" onSubmit={addLocalPlayer}>
             <label>Futbolchi ismi<input required minLength={2} maxLength={80} value={newPlayer.name} onChange={e=>setNewPlayer(p=>({...p,name:e.target.value}))} placeholder="Masalan, Otabek Shukurov"/></label>
             <label>Klub<input required minLength={2} maxLength={80} value={newPlayer.club} onChange={e=>setNewPlayer(p=>({...p,club:e.target.value}))} placeholder="Klub nomi"/></label>
@@ -356,7 +352,7 @@ function App() {
             <label>Rasm URL manzili<input type="url" value={newPlayer.image} onChange={e=>setNewPlayer(p=>({...p,image:e.target.value}))} placeholder="https://..." required/></label>
             <button className="primary-btn" type="submit"><PlusCircle size={16}/> KATALOGGA QO‘SHISH</button>
           </form></div>
-          <div className="admin-box"><div className="admin-box-heading"><ShieldCheck size={18}/><h2>Tezkor boshqaruv</h2></div><p className="muted">Bu lokal demo o‘yinni boshqaradi.</p><button className="admin-action" onClick={()=>{setCoins(v=>v+1000);setAdminMessage("+1 000 demo tanga berildi.");}}><Coins size={16}/> +1 000 demo tanga</button><button className="admin-action" onClick={()=>{setCoins(1200);setCollection([playerCatalog[6],playerCatalog[7]]);setTeam({});setFormation("433");setAdminMessage("Demo progressi qayta tiklandi.");}}><RotateCcw size={16}/> Demo progressni reset qilish</button><button className="admin-action danger" onClick={()=>{setCustomPlayers([]);setAdminMessage("Custom futbolchi katalogi tozalandi.");}}><Trash2 size={16}/> Custom kartalarni o‘chirish</button><div className="admin-note"><LockKeyhole size={16}/><span>Admin huquqi serverda tekshiriladi. Katalog va balans boshqaruvi hozircha shu brauzerda; umumiy online baza ulanmagan.</span></div></div></div>
+          <div className="admin-box"><div className="admin-box-heading"><ShieldCheck size={18}/><h2>Tezkor boshqaruv</h2></div><p className="muted">Bu lokal demo o‘yinni boshqaradi.</p><button className="admin-action" onClick={()=>{setCollection([playerCatalog[6],playerCatalog[7]]);setTeam({});setFormation("433");setAdminMessage("Demo progressi qayta tiklandi.");}}><RotateCcw size={16}/> Demo progressni reset qilish</button><button className="admin-action danger" onClick={()=>{setCustomPlayers([]);setAdminMessage("Custom futbolchi katalogi tozalandi.");}}><Trash2 size={16}/> Custom kartalarni o‘chirish</button><div className="admin-note"><LockKeyhole size={16}/><span>Admin huquqi serverda tekshiriladi. Katalog va balans boshqaruvi hozircha shu brauzerda; umumiy online baza ulanmagan.</span></div></div></div>
           {customPlayers.length>0&&<div className="admin-box admin-custom-list"><div className="admin-box-heading"><Library size={18}/><h2>Qo‘shilgan kartalar</h2></div>{customPlayers.map(player=><div className="admin-custom-row" key={player.id}><span><b>{player.name}</b><small>{player.club} · {player.role} · {player.rating}</small></span><button aria-label={player.name+" kartasini o‘chirish"} onClick={()=>removeLocalPlayer(player.id)}><Trash2 size={15}/></button></div>)}</div>}
           {adminMessage&&<div className="admin-success" role="status"><CheckCircle2 size={16}/>{adminMessage}</div>}
           {adminError&&<div className="admin-error" role="alert">{adminError}</div>}
