@@ -17,6 +17,9 @@ const players = [
   { id:"debruyne", name:"Kevin De Bruyne", club:"MANCHESTER CITY", rating:90, role:"CM", tier:"Epic", flag:"🇧🇪", color:"blue", price:900, image:"https://a.espncdn.com/i/headshots/soccer/players/full/164484.png", backupImage:"https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Kevin_De_Bruyne_Belgium_v_USA_6_July_2026-034.jpg/960px-Kevin_De_Bruyne_Belgium_v_USA_6_July_2026-034.jpg", profile:"https://www.espn.com/soccer/player/_/id/164484/kevin-de-bruyne", stats:{PAC:72,SHO:86,PAS:94,DRI:87,DEF:64,PHY:78} },
   { id:"saka", name:"Bukayo Saka", club:"ARSENAL", rating:88, role:"RW", tier:"Rare", flag:"🏴", color:"green", price:620, image:"https://a.espncdn.com/i/headshots/soccer/players/full/280555.png", backupImage:"https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Bukayo_Saka_England_v_Panama_27_June_26-149.jpg/960px-Bukayo_Saka_England_v_Panama_27_June_26-149.jpg", profile:"https://www.espn.com/soccer/player/_/id/280555/bukayo-saka", stats:{PAC:88,SHO:83,PAS:82,DRI:88,DEF:62,PHY:70} }
 ];
+const playerWikiTitles = {"messi":"Lionel Messi","mbappe":"Kylian Mbappé","haaland":"Erling Haaland","bellingham":"Jude Bellingham","ronaldo":"Cristiano Ronaldo","vinicius":"Vinícius Júnior","salah":"Mohamed Salah","yamal":"Lamine Yamal","courtois":"Thibaut Courtois","van dijk":"Virgil van Dijk","debruyne":"Kevin De Bruyne","saka":"Bukayo Saka"};
+const playerCatalog = players.map(player => ({...player, wikiTitle: playerWikiTitles[player.id] || player.name}));
+
 const packs = [
   { name:"Starter Pack", rarity:"COMMON", price:100, icon:"📦", detail:"3 ta futbolchi • boshlash uchun", color:"silver", count:3 },
   { name:"Pro Pack", rarity:"RARE", price:250, icon:"⚡", detail:"3 ta futbolchi • omad imkoniyati yuqori", color:"blue", count:3 },
@@ -38,18 +41,38 @@ const eligibleRoles = { LW:["LW","LM"], ST:["ST","CF"], RW:["RW","RM"], CM:["CM"
 function readSaved(key, fallback) { try { const raw=localStorage.getItem(key); return raw===null?fallback:JSON.parse(raw); } catch { return fallback; } }
 function saveSaved(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Private browsing can disable storage. */ } }
 function todayKey() { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function showPortraitFallback(img) {
+  if (!img) return;
+  img.style.display = "none";
+  img.parentElement?.classList.add("photo-missing");
+}
 function handlePortraitError(event, player) {
   const img = event.currentTarget;
-  const currentPlayer = players.find(item => item.id === player.id);
-  const backup = player.backupImage || currentPlayer?.backupImage;
+  const currentPlayer = playerCatalog.find(item => item.id === player.id);
+  const source = {...currentPlayer, ...player};
+  const backup = source.backupImage;
   if (backup && img.dataset.backupTried !== "true") {
     img.dataset.backupTried = "true";
     img.classList.add("commons-photo");
-    img.src = backup;
+    img.src = backup.replace("thumb.wikimedia.org/", "upload.wikimedia.org/");
     return;
   }
-  img.style.display = "none";
-  img.parentElement?.classList.add("photo-missing");
+  if (source.wikiTitle && img.dataset.wikiTried !== "true") {
+    img.dataset.wikiTried = "true";
+    const title = encodeURIComponent(source.wikiTitle.replace(/ /g, "_"));
+    fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + title, {headers: {Accept: "application/json"}})
+      .then(response => { if (!response.ok) throw new Error("Wikipedia image unavailable"); return response.json(); })
+      .then(data => {
+        if (data.thumbnail?.source && img.isConnected) {
+          img.classList.add("commons-photo");
+          img.style.display = "";
+          img.src = data.thumbnail.source;
+        } else showPortraitFallback(img);
+      })
+      .catch(() => showPortraitFallback(img));
+    return;
+  }
+  showPortraitFallback(img);
 }
 
 function App() {
@@ -82,7 +105,7 @@ function App() {
   function openPack(pack) {
     if (opening) return;
     if (coins < pack.price) { setNotice("Tangalar yetarli emas. Boshqa pack tanlang!"); return; }
-    const pulls = Array.from({length:pack.count}, () => players[Math.floor(Math.random()*players.length)]);
+    const pulls = Array.from({length:pack.count}, () => playerCatalog[Math.floor(Math.random()*playerCatalog.length)]);
     setCoins(c => c-pack.price);
     setCollection(c => [...c,...pulls]);
     setOpened({pack,pulls});
