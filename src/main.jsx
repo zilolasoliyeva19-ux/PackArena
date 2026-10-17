@@ -54,7 +54,7 @@ function App() {
 
   useEffect(() => {
     if (!opening || !opened) return;
-    const timer = window.setTimeout(() => setOpening(false), 1700);
+    const timer = window.setTimeout(() => setOpening(false), 2500);
     return () => window.clearTimeout(timer);
   }, [opening,opened]);
 
