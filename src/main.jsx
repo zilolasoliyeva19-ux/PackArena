@@ -59,6 +59,7 @@ const eligibleRoles = { LW:["LW","LM"], ST:["ST","CF"], RW:["RW","RM"], CM:["CM"
 function readSaved(key, fallback) { try { const raw=localStorage.getItem(key); return raw===null?fallback:JSON.parse(raw); } catch { return fallback; } }
 function saveSaved(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Private browsing can disable storage. */ } }
 function todayKey() { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function normalizeWikiKey(value) { return String(value||"").replace(/_/g," ").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase().trim(); }
 function showPortraitFallback(img) {
   if (!img) return;
   img.style.display = "none";
@@ -95,6 +96,9 @@ function handlePortraitError(event, player) {
 
 function App() {
   const [customPlayers,setCustomPlayers] = useState(()=>{const v=readSaved("packarena-custom-players",[]);return Array.isArray(v)?v:[];});
+  const [portraitMap,setPortraitMap] = useState(()=>{const v=readSaved("packarena-portrait-map",{});return v&&typeof v==="object"&&!Array.isArray(v)?v:{}});
+  const [savedSquads,setSavedSquads] = useState(()=>{const v=readSaved("packarena-saved-squads",[]);return Array.isArray(v)?v:[];});
+  const [squadName,setSquadName] = useState("");
   const allPlayers = [...playerCatalog, ...customPlayers];
   const [coins,setCoins] = useState(()=>{const v=readSaved("packarena-coins",1200);return Number.isFinite(v)&&v>=0?v:1200;});
   const [collection,setCollection] = useState(()=>{const v=readSaved("packarena-collection",null);return Array.isArray(v)&&v.every(p=>p&&typeof p.id==="string"&&typeof p.image==="string"&&p.stats)?v:[players[6],players[7]];});
@@ -124,10 +128,50 @@ function App() {
 
 
   useEffect(() => { saveSaved("packarena-custom-players", customPlayers); }, [customPlayers]);
+  useEffect(() => { saveSaved("packarena-saved-squads", savedSquads); }, [savedSquads]);
   useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
   useEffect(() => { saveSaved("packarena-collection", collection); }, [collection]);
   useEffect(() => { saveSaved("packarena-team", team); }, [team]);
   useEffect(() => { saveSaved("packarena-formation", formation); }, [formation]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPortraits() {
+      const cache = readSaved("packarena-portrait-map", {});
+      const missing = [...playerCatalog, ...customPlayers].filter(player => player && player.id && (player.wikiTitle || player.name) && !cache[player.id]);
+      const chunks = [];
+      for (let index=0; index<missing.length; index+=35) chunks.push(missing.slice(index,index+35));
+      const found = {};
+      await Promise.all(chunks.map(async chunk => {
+        try {
+          const params = new URLSearchParams({
+            action:"query", format:"json", prop:"pageimages", piprop:"thumbnail", pithumbsize:"520", redirects:"1", origin:"*",
+            titles:chunk.map(player=>player.wikiTitle||player.name).join("|")
+          });
+          const response = await fetch("https://en.wikipedia.org/w/api.php?"+params.toString(), {headers:{Accept:"application/json"}});
+          if(!response.ok) return;
+          const payload = await response.json();
+          const aliases = new Map();
+          for(const item of [...(payload.query?.normalized||[]),...(payload.query?.redirects||[])]) aliases.set(normalizeWikiKey(item.from),normalizeWikiKey(item.to));
+          const pageImages = new Map(Object.values(payload.query?.pages||{}).filter(page=>page.thumbnail?.source).map(page=>[normalizeWikiKey(page.title),page.thumbnail.source]));
+          for(const player of chunk) {
+            const requested = normalizeWikiKey(player.wikiTitle||player.name);
+            const canonical = aliases.get(requested)||requested;
+            const image = pageImages.get(canonical) || pageImages.get(requested);
+            if(image) found[player.id]=image;
+          }
+        } catch { /* keep the bundled image/portrait fallback if Wikipedia is unavailable */ }
+      }));
+      if(!active || !Object.keys(found).length) return;
+      setPortraitMap(previous => {
+        const next = {...readSaved("packarena-portrait-map",{}),...previous,...found};
+        saveSaved("packarena-portrait-map",next);
+        return next;
+      });
+    }
+    loadPortraits();
+    return () => { active=false; };
+  }, [customPlayers]);
 
   useEffect(() => {
     if (!opening || !opened) return;
@@ -168,6 +212,27 @@ function App() {
     const matchesQuery=!q||[player.name,player.club,player.role,player.wikiTitle].some(v=>String(v||"").toLocaleLowerCase().includes(q));
     return matchesQuery&&(wikiRole==="ALL"||player.role===wikiRole);
   });
+  function saveCurrentSquad(e) {
+    e.preventDefault();
+    const name = squadName.trim();
+    const filled = Object.values(team).filter(Boolean).length;
+    if(name.length<2 || name.length>36) { setNotice("Jamoa nomi 2–36 belgidan iborat bo‘lsin."); return; }
+    if(!filled) { setNotice("Saqlashdan oldin kamida bitta futbolchini tanlang."); return; }
+    const record = { id: Date.now(), name, formation, team: JSON.parse(JSON.stringify(team)), playerCount:filled, savedAt:new Date().toISOString() };
+    setSavedSquads(list=>[record,...list].slice(0,25));
+    setSquadName("");
+    setNotice(filled===11 ? "Orzu jamoang saqlandi!" : "Jamoaning joriy holati saqlandi. Keyin davom ettirishing mumkin.");
+  }
+  function loadSavedSquad(record) {
+    if(!formations.some(item=>item.key===record.formation)) { setNotice("Bu jamoa formati topilmadi."); return; }
+    setFormation(record.formation);
+    setTeam(record.team||{});
+    setNotice("\u201c"+record.name+"\u201d jamoasi tiklandi.");
+  }
+  function removeSavedSquad(id) {
+    setSavedSquads(list=>list.filter(record=>record.id!==id));
+    setNotice("Saqlangan jamoa o‘chirildi.");
+  }
   async function signInAdmin(e) {
     e.preventDefault();
     setAdminBusy(true); setAdminError(""); setAdminMessage("");
@@ -231,10 +296,10 @@ function App() {
       {page==="home"&&<>
         <section className="hero"><div className="hero-content"><div className="eyebrow"><span className="live-dot"/> FUTBOLNING YANGI ARENASI</div><h1>OMADINGNI<br/><span>SINAB KO‘R.</span></h1><p>Packlarni och. Afsonaviy futbolchilarni yig‘.<br/>O‘z orzu jamoangni yarat.</p><button className="primary-btn" onClick={()=>setPage("packs")}>PACK OCHISH <ArrowUpRight size={17}/></button><div className="hero-stats"><div><b>{allPlayers.length}+</b><small>FUTBOLCHI</small></div><div><b>04</b><small>PACK TURI</small></div><div><b>∞</b><small>IMKONIYAT</small></div></div></div><div className="hero-art"><div className="stadium-glow"/><div className="ball">⚽</div><div className="floating-tag tag-top"><Star size={12} fill="currentColor"/> ULTIMATE</div><div className="floating-tag tag-bottom">RATING <b>94</b></div><div className="hero-card"><div className="card-top"><b>94</b><span>RW<br/>🇦🇷</span></div><img className="hero-player-photo" src={players[0].image} alt="Lionel Messi portreti" loading="eager" fetchPriority="high" onError={e=>handlePortraitError(e,players[0])}/><div className="hero-player-name">LIONEL MESSI</div><div className="card-club">INTER MIAMI</div><div className="mini-stats"><span>PAC <b>82</b></span><span>SHO <b>90</b></span><span>DRI <b>95</b></span></div></div></div><div className="hero-watermark">PACKARENA</div></section>
         <section className="section"><div className="section-head"><div><div className="eyebrow">SEN UCHUN TANLANDI</div><h2>Ommabop packlar <Sparkles size={18}/></h2></div><button className="text-btn" onClick={()=>setPage("packs")}>Barchasi <ArrowUpRight size={15}/></button></div><div className="pack-grid">{packs.slice(0,3).map(p=><PackCard key={p.name} pack={p} onOpen={openPack} disabled={opening}/>)}</div></section>
-        <section className="section"><div className="section-head"><div><div className="eyebrow">KOLLEKSIYANGNI KUZAT</div><h2>Yulduzlar <Star size={17}/></h2></div><button className="text-btn" onClick={()=>setPage("packopedia")}>Pakopedia <ArrowUpRight size={15}/></button></div><div className="player-grid">{playerCatalog.slice(0,4).map(p=><PlayerCard key={p.id} player={p}/>)}</div></section>
+        <section className="section"><div className="section-head"><div><div className="eyebrow">KOLLEKSIYANGNI KUZAT</div><h2>Yulduzlar <Star size={17}/></h2></div><button className="text-btn" onClick={()=>setPage("packopedia")}>Pakopedia <ArrowUpRight size={15}/></button></div><div className="player-grid">{playerCatalog.slice(0,4).map(p=><PlayerCard key={p.id} player={p} portraitMap={portraitMap}/>)}</div></section>
       </>}
       {page==="packs"&&<section className="page-section"><div className="eyebrow">OMAD SEN TOMONDA BO‘LSIN</div><h1 className="page-title">PACK <span>MARKAZI</span></h1><p className="muted">Pack tanla va keyingi futbol yulduzingni kashf et.</p><div className="pack-grid all-packs">{packs.map(p=><PackCard key={p.name} pack={p} onOpen={openPack} disabled={opening}/>)}</div></section>}
-      {page==="collection"&&<section className="page-section"><div className="eyebrow">SENING FUTBOL MEROSING</div><h1 className="page-title">MENING <span>KOLLEKSIYAM</span></h1><p className="muted">Yig‘ilgan futbolchilar: {collection.length} • Orzu jamoangga qo‘shish uchun “Orzu jamoam” bo‘limiga o‘t.</p>{collection.length?<div className="player-grid collection-grid">{collection.map((p,i)=><PlayerCard key={p.id+"-"+i} player={p}/>)}</div>:<div className="empty">Hozircha futbolchi yo‘q. <button onClick={()=>setPage("packs")}>Pack ochish <ArrowUpRight size={14}/></button></div>}</section>}
+      {page==="collection"&&<section className="page-section"><div className="eyebrow">SENING FUTBOL MEROSING</div><h1 className="page-title">MENING <span>KOLLEKSIYAM</span></h1><p className="muted">Yig‘ilgan futbolchilar: {collection.length} • Orzu jamoangga qo‘shish uchun “Orzu jamoam” bo‘limiga o‘t.</p>{collection.length?<div className="player-grid collection-grid">{collection.map((p,i)=><PlayerCard key={p.id+"-"+i} player={p} portraitMap={portraitMap}/>)}</div>:<div className="empty">Hozircha futbolchi yo‘q. <button onClick={()=>setPage("packs")}>Pack ochish <ArrowUpRight size={14}/></button></div>}</section>}
       {page==="packopedia"&&<section className="page-section packopedia-page">
         <div className="eyebrow">PACKARENA PLAYER ENCYCLOPEDIA</div>
         <h1 className="page-title">PACKO<span>PEDIA</span></h1>
@@ -244,10 +309,10 @@ function App() {
           <label className="wiki-filter"><span>Pozitsiya</span><select value={wikiRole} onChange={e=>setWikiRole(e.target.value)}><option value="ALL">Barchasi</option><option value="GK">Darvozabon</option><option value="CB">Markaziy himoyachi</option><option value="LB">Chap himoyachi</option><option value="RB">O‘ng himoyachi</option><option value="CDM">Tayanch yarim himoyachi</option><option value="CM">Markaziy yarim himoyachi</option><option value="CAM">Hujumkor yarim himoyachi</option><option value="LW">Chap qanot</option><option value="RW">O‘ng qanot</option><option value="ST">Hujumchi</option><option value="CF">Ikkinchi hujumchi</option></select></label>
           <span className="wiki-result-count">{wikiResults.length} futbolchi</span>
         </div>
-        {wikiResults.length>0?<div className="player-grid wiki-player-grid">{wikiResults.map(player=><PlayerCard key={player.id} player={player} onSelect={()=>setWikiSelected(player)}/>)}</div>:<div className="empty">Hech narsa topilmadi. Qidiruv so‘zini yoki pozitsiya filtrini o‘zgartiring.</div>}
+        {wikiResults.length>0?<div className="player-grid wiki-player-grid">{wikiResults.map(player=><PlayerCard key={player.id} player={player} portraitMap={portraitMap} onSelect={()=>setWikiSelected(player)}/>)}</div>:<div className="empty">Hech narsa topilmadi. Qidiruv so‘zini yoki pozitsiya filtrini o‘zgartiring.</div>}
         <div className="wiki-source-note"><Globe size={15}/> Biografiya Wikipedia sahifasidan yuklanadi. O‘yin ichidagi reytinglar rasmiy futbol statistikasi emas.</div>
       </section>}
-      {page==="squad"&&<section className="page-section"><div className="eyebrow">TAKTIKANGNI TANLA</div><h1 className="page-title">ORZU <span>JAMOAM</span></h1><p className="muted">Har bir futbolchini o‘z pozitsiyasiga qo‘y. Faqat mos pozitsiyadagi futbolchilar tanlanadi.</p><div className="squad-toolbar"><label>Format</label><div className="formation-tabs">{formations.map(f=><button key={f.key} className={formation===f.key?"chosen":""} onClick={()=>{setFormation(f.key);setTeam({});}}>{f.label}</button>)}</div><span className="squad-count"><ShieldCheck size={15}/>{squadPlayers}/11 joy band</span></div><div className="pitch">{activeFormation.rows.map((row,ri)=><div className={"pitch-row pitch-row-"+ri} key={ri}>{row.map((pos,i)=>{const slotKey=ri+"-"+i;const p=team[slotKey];return <button key={slotKey} className={"slot "+(p?"filled":"")} onClick={()=>setSelectedSlot({key:slotKey,pos})} aria-label={pos+" pozitsiyasini tanlash"}>{p?<><img src={p.image} alt={p.name+" portreti"} loading="lazy" decoding="async" onError={e=>handlePortraitError(e,p)}/><span className="player-fallback">{p.flag}</span><span className="slot-rating">{p.rating}</span><b>{p.name}</b><small>{p.role}</small></>:<><span className="slot-plus"><Plus size={16}/></span><b>{pos}</b><small>Tanlash</small></>}</button>;})}</div>)}</div><div className="squad-actions"><button className="secondary-btn" onClick={()=>setTeam({})}><RotateCcw size={15}/> Jamoani tozalash</button><span className="muted small"><CircleHelp size={13}/> Bo‘sh pozitsiyani bosing, mos futbolchini tanlang.</span></div></section>}
+      {page==="squad"&&<section className="page-section"><div className="eyebrow">TAKTIKANGNI TANLA</div><h1 className="page-title">ORZU <span>JAMOAM</span></h1><p className="muted">Har bir futbolchini o‘z pozitsiyasiga qo‘y. Faqat mos pozitsiyadagi futbolchilar tanlanadi.</p><div className="squad-toolbar"><label>Format</label><div className="formation-tabs">{formations.map(f=><button key={f.key} className={formation===f.key?"chosen":""} onClick={()=>{setFormation(f.key);setTeam({});}}>{f.label}</button>)}</div><span className="squad-count"><ShieldCheck size={15}/>{squadPlayers}/11 joy band</span></div><div className="pitch">{activeFormation.rows.map((row,ri)=><div className={"pitch-row pitch-row-"+ri} key={ri}>{row.map((pos,i)=>{const slotKey=ri+"-"+i;const p=team[slotKey];return <button key={slotKey} className={"slot "+(p?"filled":"")} onClick={()=>setSelectedSlot({key:slotKey,pos})} aria-label={pos+" pozitsiyasini tanlash"}>{p?<><img src={portraitMap[p.id] || p.image || "/player-placeholder.svg"} alt={p.name+" portreti"} loading="lazy" decoding="async" onError={e=>handlePortraitError(e,p)}/><span className="player-fallback">{p.flag}</span><span className="slot-rating">{p.rating}</span><b>{p.name}</b><small>{p.role}</small></>:<><span className="slot-plus"><Plus size={16}/></span><b>{pos}</b><small>Tanlash</small></>}</button>;})}</div>)}</div><div className="squad-actions"><button className="secondary-btn" onClick={()=>setTeam({})}><RotateCcw size={15}/> Jamoani tozalash</button><span className="muted small"><CircleHelp size={13}/> Bo‘sh pozitsiyani bosing, mos futbolchini tanlang.</span></div></section>}
       {page==="leaderboard"&&<section className="page-section"><div className="eyebrow">ENG KUCHLI KOLLEKSIYACHILAR</div><h1 className="page-title">ARENA <span>REYTINGI</span></h1><div className="leaderboard">{[["01","GoldenBoot","12,450"],["02","TikiTaka","10,820"],["03","GoalMachine","9,640"],["04",profile.username||profile.name,collection.length+" cards"]].map((r,i)=><div className="leader-row" key={r[1]}><b className="rank">{r[0]}</b><span className="leader-avatar">{[<Trophy/>,<Sparkles/>,<Star/>,<UserRound/>][i]}</span><strong>{r[1]}</strong><span className="leader-score">{r[2]}</span></div>)}</div><p className="muted small">Namuna reytingi. Online reyting server va ma’lumotlar bazasi ulanganda yangilanadi.</p></section>}
       {page==="admin"&&<section className="page-section admin-page">
         <div className="eyebrow">PRIVATE CONTROL ROOM</div>
@@ -271,9 +336,9 @@ function App() {
       </section>}
       <footer><span>© 2026 PACKARENA</span><span>FUTBOL ISHTIYOQI BILAN YARATILDI</span><span>DEMO • VIRTUAL TANGALAR</span><a className="footer-credit" href="/image-credits.html">Rasm manbalari ↗</a></footer>
     </main>
-    {opened&&<div className={"modal-backdrop "+(opening?"is-opening":"")} onClick={()=>{if(!opening)setOpened(null);}}><div className={"reveal-modal "+(opening?"opening-modal":"")} onClick={e=>e.stopPropagation()}>{!opening&&<button className="modal-close" onClick={()=>setOpened(null)} aria-label="Yopish"><X size={18}/></button>}<div className="eyebrow">{opening?"PACK OCHILMOQDA":"PACK OCHILDI"}</div>{opening?<div className="pack-animation"><div className={"animated-pack "+opened.pack.color}><PackArtwork pack={opened.pack}/></div><div className="animation-ring"/><h2>OMADNI SINAYAPMIZ<span>...</span></h2><p className="muted">Yulduzlar ochilmoqda</p><div className="loading-line"><span/></div></div>:<><h2>{opened.pack.name} <Sparkles size={22}/></h2><p className="muted">Sening yangi futbolchilaring!</p><div className="reveal-grid">{opened.pulls.map((p,i)=><PlayerCard key={p.id+"-"+i} player={p}/>)}</div><button className="primary-btn" onClick={()=>setOpened(null)}>DAVOM ETISH <ArrowUpRight size={17}/></button></>}</div></div>}
-    {selectedSlot&&<div className="modal-backdrop" onClick={()=>setSelectedSlot(null)}><div className="picker-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setSelectedSlot(null)} aria-label="Yopish"><X size={18}/></button><div className="eyebrow">POZITSIYA TANLASH</div><h2>{selectedSlot.pos} <span>uchun futbolchilar</span></h2><p className="muted">Bu joyga faqat mos pozitsiyadagi futbolchilar qo‘yiladi.</p><div className="picker-list">{collection.filter(p=>(eligibleRoles[selectedSlot.pos]||[selectedSlot.pos]).includes(p.role)).map((p,i)=><button className="picker-player" key={p.id+"-"+i} onClick={()=>{setTeam(t=>({...t,[selectedSlot.key]:p}));setSelectedSlot(null);}}><img src={p.image} alt={p.name+" portreti"} loading="lazy" onError={e=>handlePortraitError(e,p)}/><span className="picker-flag">{p.flag}</span><span><b>{p.name}</b><small>{p.club} • {p.role}</small></span><strong>{p.rating}</strong><Check size={15}/></button>)}{collection.filter(p=>(eligibleRoles[selectedSlot.pos]||[selectedSlot.pos]).includes(p.role)).length===0&&<div className="empty">Bu pozitsiyaga mos futbolchi yo‘q. <button onClick={()=>{setSelectedSlot(null);setPage("packs");}}>Pack ochish <ArrowUpRight size={14}/></button></div>}</div><button className="secondary-btn picker-clear" onClick={()=>{setTeam(t=>{const n={...t};delete n[selectedSlot.key];return n;});setSelectedSlot(null);}}>Pozitsiyani bo‘shatish</button></div></div>}
-    {wikiSelected&&<div className="modal-backdrop wiki-detail-backdrop" onClick={()=>setWikiSelected(null)}><section className="wiki-detail-modal" role="dialog" aria-modal="true" aria-labelledby="wiki-detail-title" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setWikiSelected(null)} aria-label="Yopish"><X size={18}/></button><div className="wiki-detail-layout"><div className="wiki-detail-card"><PlayerCard player={wikiSelected}/></div><div className="wiki-detail-content"><div className="eyebrow">PLAYER ENCYCLOPEDIA</div><h2 id="wiki-detail-title">{wikiSelected.name}</h2><p className="wiki-detail-subtitle">{wikiSelected.club} · {wikiSelected.role} · {wikiSelected.flag}</p><div className="wiki-detail-stats">{Object.entries(wikiSelected.stats).slice(0,6).map(([key,value])=><span key={key}><b>{value}</b>{key}</span>)}</div><h3>Biografiya</h3>{wikiLoading?<p className="muted wiki-loading"><span className="loading-spinner"/> Wikipedia ma’lumotlari yuklanmoqda...</p>:wikiSummary?.extract?<p className="wiki-extract">{wikiSummary.extract}</p>:<p className="muted">Hozir biografiyani yuklab bo‘lmadi. Wikipedia maqolasini bevosita ochib ko‘rishingiz mumkin.</p>}<div className="wiki-links"><a href={"https://en.wikipedia.org/wiki/"+encodeURIComponent((wikiSelected.wikiTitle||wikiSelected.name).replace(/ /g,"_"))} target="_blank" rel="noreferrer"><Globe size={15}/> Wikipedia maqolasi <ExternalLink size={13}/></a>{wikiSelected.profile&&<a href={wikiSelected.profile} target="_blank" rel="noreferrer"><UserRound size={15}/> Futbolchi profili <ExternalLink size={13}/></a>}</div><p className="wiki-disclaimer">Karta reytinglari va o‘yin statistikasi PackArena demo qiymatlaridir. Rasmiy mavsum statistikasi emas.</p></div></div></section></div>}
+    {opened&&<div className={"modal-backdrop "+(opening?"is-opening":"")} onClick={()=>{if(!opening)setOpened(null);}}><div className={"reveal-modal "+(opening?"opening-modal":"")} onClick={e=>e.stopPropagation()}>{!opening&&<button className="modal-close" onClick={()=>setOpened(null)} aria-label="Yopish"><X size={18}/></button>}<div className="eyebrow">{opening?"PACK OCHILMOQDA":"PACK OCHILDI"}</div>{opening?<div className="pack-animation"><div className={"animated-pack "+opened.pack.color}><PackArtwork pack={opened.pack}/></div><div className="animation-ring"/><h2>OMADNI SINAYAPMIZ<span>...</span></h2><p className="muted">Yulduzlar ochilmoqda</p><div className="loading-line"><span/></div></div>:<><h2>{opened.pack.name} <Sparkles size={22}/></h2><p className="muted">Sening yangi futbolchilaring!</p><div className="reveal-grid">{opened.pulls.map((p,i)=><PlayerCard key={p.id+"-"+i} player={p} portraitMap={portraitMap}/>)}</div><button className="primary-btn" onClick={()=>setOpened(null)}>DAVOM ETISH <ArrowUpRight size={17}/></button></>}</div></div>}
+    {selectedSlot&&<div className="modal-backdrop" onClick={()=>setSelectedSlot(null)}><div className="picker-modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setSelectedSlot(null)} aria-label="Yopish"><X size={18}/></button><div className="eyebrow">POZITSIYA TANLASH</div><h2>{selectedSlot.pos} <span>uchun futbolchilar</span></h2><p className="muted">Bu joyga faqat mos pozitsiyadagi futbolchilar qo‘yiladi.</p><div className="picker-list">{collection.filter(p=>(eligibleRoles[selectedSlot.pos]||[selectedSlot.pos]).includes(p.role)).map((p,i)=><button className="picker-player" key={p.id+"-"+i} onClick={()=>{setTeam(t=>({...t,[selectedSlot.key]:p}));setSelectedSlot(null);}}><img src={portraitMap[p.id] || p.image || "/player-placeholder.svg"} alt={p.name+" portreti"} loading="lazy" onError={e=>handlePortraitError(e,p)}/><span className="picker-flag">{p.flag}</span><span><b>{p.name}</b><small>{p.club} • {p.role}</small></span><strong>{p.rating}</strong><Check size={15}/></button>)}{collection.filter(p=>(eligibleRoles[selectedSlot.pos]||[selectedSlot.pos]).includes(p.role)).length===0&&<div className="empty">Bu pozitsiyaga mos futbolchi yo‘q. <button onClick={()=>{setSelectedSlot(null);setPage("packs");}}>Pack ochish <ArrowUpRight size={14}/></button></div>}</div><button className="secondary-btn picker-clear" onClick={()=>{setTeam(t=>{const n={...t};delete n[selectedSlot.key];return n;});setSelectedSlot(null);}}>Pozitsiyani bo‘shatish</button></div></div>}
+    {wikiSelected&&<div className="modal-backdrop wiki-detail-backdrop" onClick={()=>setWikiSelected(null)}><section className="wiki-detail-modal" role="dialog" aria-modal="true" aria-labelledby="wiki-detail-title" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setWikiSelected(null)} aria-label="Yopish"><X size={18}/></button><div className="wiki-detail-layout"><div className="wiki-detail-card"><PlayerCard player={wikiSelected} portraitMap={portraitMap}/></div><div className="wiki-detail-content"><div className="eyebrow">PLAYER ENCYCLOPEDIA</div><h2 id="wiki-detail-title">{wikiSelected.name}</h2><p className="wiki-detail-subtitle">{wikiSelected.club} · {wikiSelected.role} · {wikiSelected.flag}</p><div className="wiki-detail-stats">{Object.entries(wikiSelected.stats).slice(0,6).map(([key,value])=><span key={key}><b>{value}</b>{key}</span>)}</div><h3>Biografiya</h3>{wikiLoading?<p className="muted wiki-loading"><span className="loading-spinner"/> Wikipedia ma’lumotlari yuklanmoqda...</p>:wikiSummary?.extract?<p className="wiki-extract">{wikiSummary.extract}</p>:<p className="muted">Hozir biografiyani yuklab bo‘lmadi. Wikipedia maqolasini bevosita ochib ko‘rishingiz mumkin.</p>}<div className="wiki-links"><a href={"https://en.wikipedia.org/wiki/"+encodeURIComponent((wikiSelected.wikiTitle||wikiSelected.name).replace(/ /g,"_"))} target="_blank" rel="noreferrer"><Globe size={15}/> Wikipedia maqolasi <ExternalLink size={13}/></a>{wikiSelected.profile&&<a href={wikiSelected.profile} target="_blank" rel="noreferrer"><UserRound size={15}/> Futbolchi profili <ExternalLink size={13}/></a>}</div><p className="wiki-disclaimer">Karta reytinglari va o‘yin statistikasi PackArena demo qiymatlaridir. Rasmiy mavsum statistikasi emas.</p></div></div></section></div>}
   </div>;
 }
 function PackArtwork({pack}) {
@@ -306,7 +371,7 @@ function PackArtwork({pack}) {
   </svg>;
 }
 function PackCard({pack,onOpen,disabled}){return <div className={"pack-card "+pack.color}><div className="pack-top"><span className="pack-rarity">{pack.rarity}</span><Sparkles size={16} className="pack-shine"/></div><div className="pack-illustration"><div className="pack-orbit"/><PackArtwork pack={pack}/></div><h3>{pack.name}</h3><p>{pack.detail}</p><div className="pack-bottom"><div className="price"><Coins size={16}/><b>{pack.price}</b></div><button disabled={disabled} onClick={()=>onOpen(pack)}>OCHISH <ArrowUpRight size={14}/></button></div></div>}
-function PlayerCard({player,onSelect}) {
+function PlayerCard({player,onSelect,portraitMap={}}) {
   const sourcePlayer = playerCatalog.find(item => item.id === player.id);
   const profileUrl = player.profile || sourcePlayer?.profile;
   return <article className={"player-card " + player.color} aria-label={player.name + " kartasi"}>
@@ -317,7 +382,7 @@ function PlayerCard({player,onSelect}) {
     <div className="player-art">
       <div className="photo-glow"/>
       <span className="card-watermark" aria-hidden="true">PA</span>
-      <img src={player.image} alt={player.name + " futbolchi portreti"} loading="lazy" decoding="async" onError={e => handlePortraitError(e, player)}/>
+      <img src={portraitMap[player.id] || player.image || "/player-placeholder.svg"} alt={player.name + " futbolchi portreti"} loading="lazy" decoding="async" onError={e => handlePortraitError(e, player)}/>
       <span className="player-fallback" aria-hidden="true">{player.flag}</span>
     </div>
     <div className="player-info">
