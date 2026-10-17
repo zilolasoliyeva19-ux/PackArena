@@ -76,7 +76,9 @@ function handlePortraitError(event, player) {
 }
 
 function App() {
-  const [customPlayers,setCustomPlayers] = useState(()=>{const v=readSaved("packarena-custom-players",[]);return Array.isArray(v)?v:[];});\n  const allPlayers = [...playerCatalog, ...customPlayers];\n  const [coins,setCoins] = useState(()=>{const v=readSaved("packarena-coins",1200);return Number.isFinite(v)&&v>=0?v:1200;});
+  const [customPlayers,setCustomPlayers] = useState(()=>{const v=readSaved("packarena-custom-players",[]);return Array.isArray(v)?v:[];});
+  const allPlayers = [...playerCatalog, ...customPlayers];
+  const [coins,setCoins] = useState(()=>{const v=readSaved("packarena-coins",1200);return Number.isFinite(v)&&v>=0?v:1200;});
   const [collection,setCollection] = useState(()=>{const v=readSaved("packarena-collection",null);return Array.isArray(v)&&v.every(p=>p&&typeof p.id==="string"&&typeof p.image==="string"&&p.stats)?v:[players[6],players[7]];});
   const [opened,setOpened] = useState(null);
   const [page,setPage] = useState("home");
@@ -103,7 +105,8 @@ function App() {
   const [newPlayer,setNewPlayer] = useState({name:"",club:"",role:"ST",rating:"80",flag:"🇺🇿",image:"",wikiTitle:""});
 
 
-  useEffect(() => { saveSaved("packarena-custom-players", customPlayers); }, [customPlayers]);\n  useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
+  useEffect(() => { saveSaved("packarena-custom-players", customPlayers); }, [customPlayers]);
+  useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
   useEffect(() => { saveSaved("packarena-collection", collection); }, [collection]);
   useEffect(() => { saveSaved("packarena-team", team); }, [team]);
   useEffect(() => { saveSaved("packarena-formation", formation); }, [formation]);
