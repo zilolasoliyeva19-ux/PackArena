@@ -50,10 +50,15 @@ function App() {
   const [selectedSlot,setSelectedSlot] = useState(null);
   const [formation,setFormation] = useState(()=>{const v=readSaved("packarena-formation","433");return formations.some(f=>f.key===v)?v:"433";});
   const [giftClaimed,setGiftClaimed] = useState(()=>readSaved("packarena-gift-date","")===todayKey());
-  const [profile,setProfile] = useState(()=>{try{const p=JSON.parse(localStorage.getItem("packarena-profile")||"null");return p&&typeof p.name==="string"&&typeof p.username==="string"?p:null}catch{return null}});
+  const [profile,setProfile] = useState(()=>{const p=readSaved("packarena-profile",null);return p&&typeof p.name==="string"&&p.name.trim().length>=2&&typeof p.username==="string"&&p.username.length>=3&&p.username.length<=20&&[...p.username].every(ch=>/[a-zA-Z0-9_]/.test(ch))?{name:p.name.trim(),username:p.username}:null;});
   const [authName,setAuthName] = useState("");
   const [authUsername,setAuthUsername] = useState("");
   const [authError,setAuthError] = useState("");
+
+  useEffect(() => { saveSaved("packarena-coins", coins); }, [coins]);
+  useEffect(() => { saveSaved("packarena-collection", collection); }, [collection]);
+  useEffect(() => { saveSaved("packarena-team", team); }, [team]);
+  useEffect(() => { saveSaved("packarena-formation", formation); }, [formation]);
 
   useEffect(() => {
     if (!opening || !opened) return;
@@ -78,13 +83,35 @@ function App() {
   const currentNav = nav.find(n=>n.id===page);
   const activeFormation = formations.find(f=>f.key===formation) || formations[0];
   const squadPlayers = Object.values(team).filter(Boolean).length;
-  function createProfile(e){e.preventDefault();const name=authName.trim().replace(/\\s+/g," ");const username=authUsername.trim().replace(/^@/,"");if(name.length<2||name.length>40){setAuthError("Ism 2–40 belgidan iborat bo‘lishi kerak.");return;}if(!/^[a-zA-Z0-9_]{3,20}$/.test(username)){setAuthError("Username 3–20 belgi: faqat lotin harflari, raqam va _.");return;}const next={name,username};try{localStorage.setItem("packarena-profile",JSON.stringify(next));setProfile(next);setAuthError("");}catch{setAuthError("Profil saqlanmadi. Brauzer xotirasini tekshiring.");}}
+  function createProfile(e) {
+    e.preventDefault();
+    const name = authName.trim();
+    const username = authUsername.trim().replace(/^@/, "");
+    if (name.length < 2 || name.length > 40) {
+      setAuthError("Ism 2–40 belgidan iborat bo‘lishi kerak.");
+      return;
+    }
+    if (username.length < 3 || username.length > 20 || ![...username].every(ch => /[a-zA-Z0-9_]/.test(ch))) {
+      setAuthError("Username 3–20 belgi: faqat lotin harflari, raqam va _.");
+      return;
+    }
+    const next = { name, username };
+    try {
+      localStorage.setItem("packarena-profile", JSON.stringify(next));
+      setProfile(next);
+      setAuthError("");
+    } catch {
+      setAuthError("Profilni saqlab bo‘lmadi. Brauzer sozlamalarini tekshiring.");
+    }
+  }
   if(!profile)return <div className="auth-screen"><div className="auth-panel"><img src="/packarena-logo.svg" alt="PackArena" className="auth-logo"/><div className="eyebrow">YANGI MAVSUM BOSHLANDI</div><h1>ARENAGA <span>XUSH KELIBSIZ</span></h1><p>Profil yaratish uchun faqat ismingiz va username’ingiz kerak.</p><form onSubmit={createProfile} className="auth-form"><label>Ism</label><input value={authName} onChange={e=>setAuthName(e.target.value)} placeholder="Masalan, Ali" autoComplete="name" maxLength={40} required/><label>Username</label><div className="username-input"><span>@</span><input value={authUsername} onChange={e=>setAuthUsername(e.target.value.replace(/^@/,""))} placeholder="ali_uz" autoComplete="username" maxLength={20} required/></div>{authError&&<div className="auth-error">{authError}</div>}<button className="primary-btn auth-submit" type="submit">ARENAGA KIRISH <ArrowUpRight size={17}/></button></form><small className="auth-note">Parol va telefon raqami so‘ralmaydi. Bu hozircha ushbu qurilmada saqlanadigan demo profil.</small></div></div>;
   return <div className="app">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={e=>{e.preventDefault();setPage("home");}}><img src="/packarena-logo.svg" alt="PackArena logo" className="brand-logo"/><span className="brand-word">PACK<span className="green">ARENA</span><small>OPEN. COLLECT. DOMINATE.</small></span></a>
       <div className="nav-label">ASOSIY MENYU</div>
+      <nav className="nav-items" aria-label="Asosiy menyu">
       {nav.map(n=>{const Icon=n.icon;return <button key={n.id} className={"nav-item "+(page===n.id?"active":"")} onClick={()=>{setPage(n.id);setOpened(null);setSelectedSlot(null);}}><Icon className="nav-icon" size={18} strokeWidth={2.1}/>{n.label}{n.id==="collection"&&<span className="nav-count">{collection.length}</span>}</button>;})}
+      </nav>
       <div className="sidebar-bottom"><div className="season-card"><Trophy size={23} className="season-icon"/><b>SEASON 01</b><p>Maydonga chiqish vaqti!</p><div className="progress"><span/></div><small>Level 1 <span>0 / 500 XP</span></small></div><div className="user-mini"><div className="avatar"><UserRound size={17}/></div><div><b>{profile.name}</b><small>@{profile.username}</small></div><button className="profile-reset" title="Profilni almashtirish" onClick={()=>{try{localStorage.removeItem("packarena-profile");}catch{}setProfile(null);setAuthName("");setAuthUsername("");}}>↻</button></div></div>
     </aside>
     <main className="main">
@@ -97,7 +124,7 @@ function App() {
       </>}
       {page==="packs"&&<section className="page-section"><div className="eyebrow">OMAD SEN TOMONDA BO‘LSIN</div><h1 className="page-title">PACK <span>MARKAZI</span></h1><p className="muted">Pack tanla va keyingi futbol yulduzingni kashf et.</p><div className="pack-grid all-packs">{packs.map(p=><PackCard key={p.name} pack={p} onOpen={openPack} disabled={opening}/>)}</div></section>}
       {page==="collection"&&<section className="page-section"><div className="eyebrow">SENING FUTBOL MEROSING</div><h1 className="page-title">MENING <span>KOLLEKSIYAM</span></h1><p className="muted">Yig‘ilgan futbolchilar: {collection.length} • Orzu jamoangga qo‘shish uchun “Orzu jamoam” bo‘limiga o‘t.</p>{collection.length?<div className="player-grid collection-grid">{collection.map((p,i)=><PlayerCard key={p.id+"-"+i} player={p}/>)}</div>:<div className="empty">Hozircha futbolchi yo‘q. <button onClick={()=>setPage("packs")}>Pack ochish <ArrowUpRight size={14}/></button></div>}</section>}
-      {page==="squad"&&<section className="page-section"><div className="eyebrow">TAKTIKANGNI TANLA</div><h1 className="page-title">ORZU <span>JAMOAM</span></h1><p className="muted">Har bir futbolchini o‘z pozitsiyasiga qo‘y. Faqat mos pozitsiyadagi futbolchilar tanlanadi.</p><div className="squad-toolbar"><label>Format</label><div className="formation-tabs">{formations.map(f=><button key={f.key} className={formation===f.key?"chosen":""} onClick={()=>{setFormation(f.key);setTeam({});}}>{f.label}</button>)}</div><span className="squad-count"><ShieldCheck size={15}/>{squadPlayers}/11 joy band</span></div><div className="pitch">{activeFormation.rows.map((row,ri)=><div className={"pitch-row pitch-row-"+ri} key={ri}>{row.map((pos,i)=>{const slotKey=ri+"-"+i;const p=team[slotKey];return <button key={slotKey} className={"slot "+(p?"filled":"")} onClick={()=>setSelectedSlot({key:slotKey,pos})} aria-label={pos+" pozitsiyasini tanlash"}>{p?<><img src={p.image} alt={p.name+" portreti"} loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";e.currentTarget.parentElement.classList.add("photo-missing");}}/><span className="player-fallback">{p.flag}</span><span className="slot-rating">{p.rating}</span><b>{p.name}</b><small>{p.role}</small></>:<><span className="slot-plus"><Plus size={16}/></span><b>{pos}</b><small>Tanlash</small></>}</button>;})}</div>)}</div><div className="squad-actions"><button className="secondary-btn" onClick={()=>setTeam({})}><RotateCcw size={15}/> Jamoani tozalash</button><span className="muted small"><CircleHelp size={13}/> Bo‘sh pozitsiyani bosing, mos futbolchini tanlang.</span></div></section>}
+      {page==="squad"&&<section className="page-section"><div className="eyebrow">TAKTIKANGNI TANLA</div><h1 className="page-title">ORZU <span>JAMOAM</span></h1><p className="muted">Har bir futbolchini o‘z pozitsiyasiga qo‘y. Faqat mos pozitsiyadagi futbolchilar tanlanadi.</p><div className="squad-toolbar"><label>Format</label><div className="formation-tabs">{formations.map(f=><button key={f.key} className={formation===f.key?"chosen":""} onClick={()=>{setFormation(f.key);setTeam({});}}>{f.label}</button>)}</div><span className="squad-count"><ShieldCheck size={15}/>{squadPlayers}/11 joy band</span></div><div className="pitch">{activeFormation.rows.map((row,ri)=><div className={"pitch-row pitch-row-"+ri} key={ri}>{row.map((pos,i)=>{const slotKey=ri+"-"+i;const p=team[slotKey];return <button key={slotKey} className={"slot "+(p?"filled":"")} onClick={()=>setSelectedSlot({key:slotKey,pos})} aria-label={pos+" pozitsiyasini tanlash"}>{p?<><img src={p.image} alt={p.name+" portreti"} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display="none";e.currentTarget.parentElement.classList.add("photo-missing");}}/><span className="player-fallback">{p.flag}</span><span className="slot-rating">{p.rating}</span><b>{p.name}</b><small>{p.role}</small></>:<><span className="slot-plus"><Plus size={16}/></span><b>{pos}</b><small>Tanlash</small></>}</button>;})}</div>)}</div><div className="squad-actions"><button className="secondary-btn" onClick={()=>setTeam({})}><RotateCcw size={15}/> Jamoani tozalash</button><span className="muted small"><CircleHelp size={13}/> Bo‘sh pozitsiyani bosing, mos futbolchini tanlang.</span></div></section>}
       {page==="leaderboard"&&<section className="page-section"><div className="eyebrow">ENG KUCHLI KOLLEKSIYACHILAR</div><h1 className="page-title">ARENA <span>REYTINGI</span></h1><div className="leaderboard">{[["01","GoldenBoot","12,450"],["02","TikiTaka","10,820"],["03","GoalMachine","9,640"],["04",profile.username,collection.length+" cards"]].map((r,i)=><div className="leader-row" key={r[1]}><b className="rank">{r[0]}</b><span className="leader-avatar">{[<Trophy/>,<Sparkles/>,<Star/>,<UserRound/>][i]}</span><strong>{r[1]}</strong><span className="leader-score">{r[2]}</span></div>)}</div><p className="muted small">Namuna reytingi. Online reyting server va ma’lumotlar bazasi ulanganda yangilanadi.</p></section>}
       <footer><span>© 2026 PACKARENA</span><span>FUTBOL ISHTIYOQI BILAN YARATILDI</span><span>DEMO • VIRTUAL TANGALAR</span></footer>
     </main>
