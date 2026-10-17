@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "PackArena",
+  "short_name": "PackArena",
+  "description": "Futbolchi kartalarini yig‘ va orzu jamoangni tuz.",
+  "lang": "uz",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#08120c",
+  "theme_color": "#08120c",
+  "icons": [
+    {
+      "src": "/packarena-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
