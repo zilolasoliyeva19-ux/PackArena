@@ -1,6 +1,15 @@
 # PackArena
 
-Football pack-opening demo in Uzbek. Open virtual packs, collect football-player cards, track a virtual coin balance, and build a sample 4-3-3 squad.
+PackArena is an Uzbek-language football card pack-opening demo with a collectible-player catalogue, a squad builder, and Pakopedia.
+
+## Features
+
+- 45 player cards in the built-in catalogue, with photo-source fallback and player-profile links.
+- Animated pack opening with rarity-weighted demo pulls.
+- Collection, virtual balance, squad, formation, custom cards, and daily-gift progress saved in the current browser.
+- Pakopedia search and position filters, with Wikipedia biography summaries and direct source links.
+- Admin dashboard with server-verified login, demo coin controls, collection reset, and custom-card management.
+- Responsive desktop/mobile/WebView layout, app manifest, logo, and favicon.
 
 ## Run locally
 
@@ -9,11 +18,20 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite.
+The static UI is available at the Vite URL. The admin verification API uses `/api/admin`; when running the Express server with `npm start`, set `ADMIN_SECRET` in the environment first.
 
-## Notes
+## Configure the admin key in Vercel
 
-- This is a front-end demo. Collection, squad, and virtual coins live in browser memory and reset on refresh.
-- Player pulls are randomly selected from a sample list and are for entertainment only.
-- No real-money purchases or paid subscriptions are implemented.
-- Authentication, database persistence, server-authoritative pack rolls, anti-cheat, and a live leaderboard are not connected yet.
+1. Open the PackArena project in Vercel and go to **Settings → Environment Variables**.
+2. Add `ADMIN_SECRET` with a strong secret at least 24 characters long. Do not put the secret in source code, a public file, or `VITE_*` variables.
+3. Apply it to Production (and Preview/Development if required), save, then redeploy.
+4. Open PackArena → **Admin panel** and enter the same secret.
+
+## Current demo limitations
+
+- Profile name/optional username and game state are stored in the browser, not in a shared user database.
+- Admin controls currently edit the current browser's demo data. Shared player catalogue, global coin grants, real multi-user accounts, and moderation require a database and persistent server-side admin actions.
+- Player-card ratings and attributes are game values for demo balance, not verified official live performance stats.
+- Player portraits load from ESPN/Wikimedia/Wikipedia endpoints; the app attempts a second source, then shows a flag fallback when an image host is blocked or the file is unavailable.
+- No real-money purchases, paid subscriptions, or financial transactions are implemented.
+- The live leaderboard and real-time fixtures are not connected.
