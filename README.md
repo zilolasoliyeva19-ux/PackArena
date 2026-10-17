@@ -4,9 +4,9 @@ PackArena is an Uzbek-language football card pack-opening demo with a collectibl
 
 ## Features
 
-- 45 player cards in the built-in catalogue, with photo-source fallback and player-profile links.
+- 145 player cards in the built-in catalogue, with Wikipedia thumbnail lookup in batches, portrait fallbacks, and player-profile links.
 - Animated pack opening with rarity-weighted demo pulls.
-- Collection, virtual balance, squad, formation, custom cards, and daily-gift progress saved in the current browser.
+- Collection, virtual balance, formation, named saved squads (up to 25), custom cards, and daily-gift progress saved in the current browser.
 - Pakopedia search and position filters, with Wikipedia biography summaries and direct source links.
 - Admin dashboard with server-verified login, demo coin controls, collection reset, and custom-card management.
 - Responsive desktop/mobile/WebView layout, app manifest, logo, and favicon.
@@ -32,6 +32,6 @@ The static UI is available at the Vite URL. The admin verification API uses `/ap
 - Profile name/optional username and game state are stored in the browser, not in a shared user database.
 - Admin controls currently edit the current browser's demo data. Shared player catalogue, global coin grants, real multi-user accounts, and moderation require a database and persistent server-side admin actions.
 - Player-card ratings and attributes are game values for demo balance, not verified official live performance stats.
-- Player portraits load from ESPN/Wikimedia/Wikipedia endpoints; the app attempts a second source, then shows a flag fallback when an image host is blocked or the file is unavailable.
+- Player portraits are resolved in batches from Wikipedia page thumbnails, then use the existing ESPN URL or local PackArena portrait fallback. Portrait URLs are cached in the current browser.
 - No real-money purchases, paid subscriptions, or financial transactions are implemented.
 - The live leaderboard and real-time fixtures are not connected.
