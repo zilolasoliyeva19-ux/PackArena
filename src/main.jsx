@@ -64,6 +64,8 @@ function showPortraitFallback(img) {
   if (!img) return;
   img.style.display = "none";
   img.parentElement?.classList.add("photo-missing");
+  const fallback = img.parentElement?.querySelector(".player-fallback");
+  if (fallback) { fallback.textContent = "⚽"; fallback.setAttribute("aria-label", "Futbolchi rasmi mavjud emas"); }
 }
 function handlePortraitError(event, player) {
   const img = event.currentTarget;
@@ -394,7 +396,7 @@ function PackArtwork({pack}) {
     <path d="M24 31 16 24M116 41l8-8M30 126l-7 8M112 125l8 8" stroke={palette[0]} strokeWidth="2" strokeLinecap="round" opacity=".8"/>
   </svg>;
 }
-function PackCard({pack,onOpen,disabled}){return <div className={"pack-card "+pack.color}><div className="pack-top"><span className="pack-rarity">{pack.rarity}</span><Sparkles size={16} className="pack-shine"/></div><div className="pack-illustration"><div className="pack-orbit"/><PackArtwork pack={pack}/></div><h3>{pack.name}</h3><p>{pack.detail}</p><div className="pack-bottom"><div className="price"><Coins size={16}/><b>{pack.price}</b></div><button disabled={disabled} onClick={()=>onOpen(pack)}>OCHISH <ArrowUpRight size={14}/></button></div></div>}
+function PackCard({pack,onOpen,disabled}){return <div className={"pack-card "+pack.color}><div className="pack-top"><span className="pack-rarity">{pack.rarity}</span><Sparkles size={16} className="pack-shine"/></div><div className="pack-illustration"><div className="pack-orbit"/><PackArtwork pack={pack}/></div><h3>{pack.name}</h3><p>{pack.detail}</p><div className="pack-bottom"><div className="price free-price"><Sparkles size={15}/><b>BEPUL</b></div><button disabled={disabled} onClick={()=>onOpen(pack)}>OCHISH <ArrowUpRight size={14}/></button></div></div>}
 function PlayerCard({player,onSelect,portraitMap={}}) {
   const sourcePlayer = playerCatalog.find(item => item.id === player.id);
   const profileUrl = player.profile || sourcePlayer?.profile;
